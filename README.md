@@ -21,7 +21,7 @@ The image is built using a multi-stage build approach to keep the final image si
 ### Pull the image
 
 ```bash
-docker pull yourusername/postgres-pgvector:latest
+docker pull cloudbedrock/postgres:latest
 ```
 
 ### Run a container
@@ -86,9 +86,9 @@ LIMIT 5;
 If you want to build the image yourself:
 
 ```bash
-git clone https://github.com/yourusername/postgres-pgvector.git
+git clone https://github.com/cloudbedrock/postgres.git
 cd postgres-pgvector
-docker build -t yourusername/postgres-pgvector:latest .
+docker build -t cloudbedrock/postgres:latest .
 ```
 
 ## Dockerfile
