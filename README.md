@@ -32,7 +32,7 @@ docker run -d \
   -e POSTGRES_PASSWORD=mysecretpassword \
   -p 5432:5432 \
   -v pgdata:/var/lib/postgresql/data \
-  yourusername/postgres-pgvector:latest
+  cloudbedrock/postgres:latest
 ```
 
 ### Enable the extension
