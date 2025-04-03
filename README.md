@@ -1,6 +1,6 @@
 # PostgreSQL with pgvector
 
-A ready-to-use Docker image for PostgreSQL 17.4 with the [pgvector](https://github.com/pgvector/pgvector) extension pre-installed.
+A ready-to-use Docker image for PostgreSQL 17.4 with the [pgvector](https://github.com/pgvector/pgvector) extension pre-installed. Intended for use with [Crib Ops](https://github.com/cloudbedrock/cribops-docs)
 
 ## Overview
 
