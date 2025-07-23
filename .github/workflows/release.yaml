@@ -89,26 +89,67 @@ jobs:
   build-arm64:
     runs-on: [self-hosted, macOS, ARM64]
     needs: extract-version
+    timeout-minutes: 60  # Overall job timeout
     steps:
       - uses: actions/checkout@v4
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PAT }}" | docker login docker.io -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
+      - name: Login to GHCR
+        run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build & push ARM64 image
+      - name: Build ARM64 image
+        timeout-minutes: 30
         run: |
           VERSION="${{ needs.extract-version.outputs.version }}"
           echo "Building ARM64 image with version = $VERSION"
           docker buildx build \
             --platform linux/arm64 \
-            --push \
+            --output type=docker \
             -t ghcr.io/cloudbedrock/postgres:${VERSION}-arm64 \
             -t ghcr.io/cloudbedrock/postgres:latest-arm64 \
             -t docker.io/cloudbedrock/postgres:${VERSION}-arm64 \
             -t docker.io/cloudbedrock/postgres:latest-arm64 \
             -f Dockerfile .
+
+      - name: Push to registries with retry
+        timeout-minutes: 30
+        run: |
+          VERSION="${{ needs.extract-version.outputs.version }}"
+          
+          # Function to push with retries
+          push_with_retry() {
+            local image=$1
+            local max_attempts=3
+            local attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Pushing $image (attempt $attempt/$max_attempts)..."
+              if docker push "$image"; then
+                echo "Successfully pushed $image"
+                return 0
+              else
+                echo "Failed to push $image (attempt $attempt/$max_attempts)"
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "Waiting 30 seconds before retry..."
+                  sleep 30
+                fi
+                attempt=$((attempt + 1))
+              fi
+            done
+            
+            echo "Failed to push $image after $max_attempts attempts"
+            return 1
+          }
+          
+          # Push images with retry logic
+          push_with_retry "ghcr.io/cloudbedrock/postgres:${VERSION}-arm64"
+          push_with_retry "ghcr.io/cloudbedrock/postgres:latest-arm64"
+          push_with_retry "docker.io/cloudbedrock/postgres:${VERSION}-arm64"
+          push_with_retry "docker.io/cloudbedrock/postgres:latest-arm64"
 
   # -----------------------------------------------------------------------------
   # 4) Create multi-arch manifest for the specific version and for :latest on both registries
