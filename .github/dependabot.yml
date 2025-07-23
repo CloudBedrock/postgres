@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Only update PostgreSQL minor versions within 17.x
+    allow:
+      - dependency-name: "postgres"
+        dependency-type: "direct"
+    ignore:
+      # Don't auto-update to PostgreSQL 18.x or higher
+      - dependency-name: "postgres"
+        versions: [">=18.0.0"]

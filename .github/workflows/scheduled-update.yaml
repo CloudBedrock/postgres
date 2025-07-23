@@ -1,0 +1,99 @@
+name: Scheduled Update Check
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force rebuild even if no updates'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.check.outputs.needs_update }}
+      postgres_version: ${{ steps.check.outputs.postgres_version }}
+      pgvector_version: ${{ steps.check.outputs.pgvector_version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for updates
+        id: check
+        run: |
+          # Get latest PostgreSQL 17.x version from Docker Hub
+          LATEST_PG=$(curl -s https://hub.docker.com/v2/repositories/library/postgres/tags/?page_size=100 | \
+            jq -r '.results[].name' | \
+            grep -E '^17\.[0-9]+$' | \
+            sort -V | \
+            tail -1)
+          
+          # Get current version from Dockerfile
+          CURRENT_PG=$(grep "FROM postgres:" Dockerfile | cut -d: -f2)
+          
+          # Get latest pgvector release
+          LATEST_PGVECTOR=$(curl -s https://api.github.com/repos/pgvector/pgvector/releases/latest | \
+            jq -r '.tag_name')
+          
+          # Check if we need to update
+          NEEDS_UPDATE=false
+          if [[ "$LATEST_PG" != "$CURRENT_PG" ]]; then
+            echo "PostgreSQL update available: $CURRENT_PG -> $LATEST_PG"
+            NEEDS_UPDATE=true
+          fi
+          
+          # For pgvector, we always build from main, but we'll log the latest release
+          echo "Latest pgvector release: $LATEST_PGVECTOR"
+          
+          # Force build if requested
+          if [[ "${{ github.event.inputs.force_build }}" == "true" ]]; then
+            echo "Force build requested"
+            NEEDS_UPDATE=true
+          fi
+          
+          echo "needs_update=$NEEDS_UPDATE" >> $GITHUB_OUTPUT
+          echo "postgres_version=$LATEST_PG" >> $GITHUB_OUTPUT
+          echo "pgvector_version=$LATEST_PGVECTOR" >> $GITHUB_OUTPUT
+
+  update-and-build:
+    needs: check-updates
+    if: needs.check-updates.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+      
+      - name: Update Dockerfile
+        run: |
+          PG_VERSION="${{ needs.check-updates.outputs.postgres_version }}"
+          sed -i "s/FROM postgres:[0-9.]\+/FROM postgres:$PG_VERSION/" Dockerfile
+          
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --exit-code; then
+            echo "No changes to commit"
+          else
+            git add Dockerfile
+            git commit -m "Update PostgreSQL to ${{ needs.check-updates.outputs.postgres_version }}"
+            git push
+          fi
+      
+      - name: Create release tag
+        run: |
+          # Generate version based on date and PostgreSQL version
+          DATE=$(date +%Y%m%d)
+          PG_VERSION="${{ needs.check-updates.outputs.postgres_version }}"
+          TAG="v${PG_VERSION}-${DATE}"
+          
+          git tag $TAG
+          git push origin $TAG
+          
+          echo "Created release tag: $TAG"
