@@ -20,7 +20,7 @@ jobs:
       postgres_version: ${{ steps.check.outputs.postgres_version }}
       pgvector_version: ${{ steps.check.outputs.pgvector_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Check for updates
         id: check
@@ -64,7 +64,7 @@ jobs:
     if: needs.check-updates.outputs.needs_update == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           token: ${{ secrets.GH_PAT }}
       
