@@ -18,4 +18,4 @@ updates:
     ignore:
       # Don't auto-update to PostgreSQL 18.x or higher
       - dependency-name: "postgres"
-        versions: [">=18.0.0"]
+        versions: [">=19.0.0"]
