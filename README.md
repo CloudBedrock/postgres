@@ -11,7 +11,7 @@ The image is built using a multi-stage build approach to keep the final image si
 
 ## Features
 
-- Based on the official PostgreSQL 17.4 image
+- Based on the official PostgreSQL 18.1 image
 - Pre-installed pgvector extension for vector similarity search
 - Multi-stage build for minimal image size
 - Includes latest security updates
