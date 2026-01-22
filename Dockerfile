@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder – Build pgvector and pg_cron extensions
 # -----------------------------------------------------------------------------
-    FROM postgres:18.1 AS builder
+    FROM postgres:17.7 AS builder
 
     # Update and install build dependencies
     RUN apt-get update && apt-get upgrade -y && apt-get install -y \
