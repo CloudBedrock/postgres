@@ -1,0 +1,40 @@
+version: 0.2
+
+# CodeBuild buildspec for cribops-postgres - Multi-arch manifest creation
+
+env:
+  variables:
+    CONTAINER_REPOSITORY_URL: 838356389450.dkr.ecr.us-east-1.amazonaws.com/cribops-postgres
+
+phases:
+  pre_build:
+    commands:
+      - echo "=== Postgres Multi-arch Manifest Creation ==="
+      - yum install -y jq || apt-get install -y jq
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $CONTAINER_REPOSITORY_URL
+      - export TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
+      - echo "Creating manifest for tag $TAG (commit $CODEBUILD_RESOLVED_SOURCE_VERSION)"
+
+  build:
+    commands:
+      - echo "Verifying both architecture images exist..."
+      - docker manifest inspect $CONTAINER_REPOSITORY_URL:$TAG-arm64 || (echo "ARM64 image not found!" && exit 1)
+      - docker manifest inspect $CONTAINER_REPOSITORY_URL:$TAG-amd64 || (echo "AMD64 image not found!" && exit 1)
+
+      - echo "Creating multi-arch manifest for $TAG..."
+      - |
+        docker manifest create $CONTAINER_REPOSITORY_URL:$TAG \
+          $CONTAINER_REPOSITORY_URL:$TAG-arm64 \
+          $CONTAINER_REPOSITORY_URL:$TAG-amd64
+      - docker manifest push $CONTAINER_REPOSITORY_URL:$TAG
+
+      - echo "Creating multi-arch manifest for latest..."
+      - docker manifest rm $CONTAINER_REPOSITORY_URL:latest 2>/dev/null || true
+      - |
+        docker manifest create $CONTAINER_REPOSITORY_URL:latest \
+          $CONTAINER_REPOSITORY_URL:latest-arm64 \
+          $CONTAINER_REPOSITORY_URL:latest-amd64
+      - docker manifest push $CONTAINER_REPOSITORY_URL:latest
+
+      - echo "Multi-arch manifests created successfully"

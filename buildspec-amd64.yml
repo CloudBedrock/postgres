@@ -1,0 +1,44 @@
+version: 0.2
+
+# CodeBuild buildspec for cribops-postgres - AMD64/x86_64 build
+
+env:
+  variables:
+    CONTAINER_REPOSITORY_URL: 838356389450.dkr.ecr.us-east-1.amazonaws.com/cribops-postgres
+    ARCH: amd64
+
+phases:
+  pre_build:
+    commands:
+      - echo "=== Postgres AMD64 Build ==="
+      - yum install -y jq || apt-get install -y jq
+      - export DOCKER_HUB_SECRET=$(aws secretsmanager get-secret-value --secret-id prod/cribops/docker --query SecretString --output text)
+      - export DOCKER_USERNAME=$(echo $DOCKER_HUB_SECRET | jq -r .username)
+      - export DOCKER_PASSWORD=$(echo $DOCKER_HUB_SECRET | jq -r .password)
+      - echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $CONTAINER_REPOSITORY_URL
+      - export TAG_NAME=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-12)
+      - echo "Building tag $TAG_NAME for $ARCH (commit $CODEBUILD_RESOLVED_SOURCE_VERSION)"
+      - echo "Pulling latest for cache..."
+      - docker pull $CONTAINER_REPOSITORY_URL:latest-$ARCH || true
+
+  build:
+    commands:
+      - echo "Building Postgres Docker image for $ARCH..."
+      - export DOCKER_BUILDKIT=1
+      - |
+        docker build \
+          --progress=plain \
+          --cache-from $CONTAINER_REPOSITORY_URL:latest-$ARCH \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --tag $CONTAINER_REPOSITORY_URL:$TAG_NAME-$ARCH \
+          --tag $CONTAINER_REPOSITORY_URL:latest-$ARCH \
+          .
+      - echo "Pushing Docker image to ECR..."
+      - docker push $CONTAINER_REPOSITORY_URL:$TAG_NAME-$ARCH
+      - docker push $CONTAINER_REPOSITORY_URL:latest-$ARCH
+
+  post_build:
+    commands:
+      - echo "AMD64 build complete - $CONTAINER_REPOSITORY_URL:$TAG_NAME-$ARCH"
