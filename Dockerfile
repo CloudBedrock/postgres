@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder – Build pgvector and pg_cron extensions
 # -----------------------------------------------------------------------------
-    FROM postgres:17.7 AS builder
+    FROM postgres:17.8 AS builder
 
     # Update and install build dependencies
     RUN apt-get update && apt-get upgrade -y && apt-get install -y \
@@ -24,7 +24,7 @@
     # -----------------------------------------------------------------------------
     # Stage 2: Final – Create a lean runtime image with only the necessary files
     # -----------------------------------------------------------------------------
-    FROM postgres:17.7
+    FROM postgres:17.8
     
     # Update the runtime image for security updates
     RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
