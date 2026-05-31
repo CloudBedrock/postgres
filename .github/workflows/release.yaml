@@ -68,7 +68,7 @@ jobs:
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PAT }}" | docker login docker.io -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build & push AMD64 image
         run: |
@@ -99,7 +99,7 @@ jobs:
       - name: Login to GHCR
         run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build ARM64 image
         timeout-minutes: 30
